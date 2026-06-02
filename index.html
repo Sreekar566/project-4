@@ -50,6 +50,15 @@
     footer { margin-top: 16px; font-size: 11px; color: #2a4060; font-family: 'Courier New', monospace; border-top: 0.5px solid #1a2535; padding-top: 12px; }
     footer a { color: #3a6090; text-decoration: none; }
     footer a:hover { color: #5a8fbf; }
+    #line-chart-section { margin-bottom: 18px; }
+    #line-chart-header { font-size: 11px; color: #4a6080; font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    #line-chart-wrap { background: #0d1220; border: 0.5px solid #1e2d45; border-radius: 8px; overflow: hidden; position: relative; }
+    #lc-annotation { font-size: 12px; color: #5a7090; font-style: italic; line-height: 1.65; padding: 9px 16px 10px; border-top: 0.5px solid #1a2535; }
+    #lc-annotation span { color: #a8c4e0; font-style: normal; }
+    #lc-tooltip { position: absolute; background: #111827; border: 0.5px solid #2a4060; border-radius: 8px; padding: 8px 12px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; }
+    .lc-t-name { font-size: 13px; color: #e8eef8; margin-bottom: 4px; }
+    .lc-t-row { color: #7a8faa; margin: 2px 0; }
+    .lc-t-val { color: #a8c4e0; }
   </style>
 </head>
 <body>
@@ -58,6 +67,15 @@
   <h1>Global Temperature Teleconnections</h1>
   <p>NASA MODIS Land Surface Temperature (MOD11C3) · 12 biome regions · Reading the Planet · 2023</p>
 </header>
+
+<div id="line-chart-section">
+  <div id="line-chart-header">Monthly Land Surface Temperature — All 12 Biomes · 2023 · Hover a line to identify it</div>
+  <div id="line-chart-wrap">
+    <svg id="lc-svg" width="100%"></svg>
+    <div id="lc-annotation">Notice how some curves mirror each other almost perfectly — <span>Siberia and the Great Plains</span> rise and fall in near-perfect sync, both peaking in summer and crashing in winter. Others, like the <span>Amazon and Congo</span>, barely move at all. And <span>Australia</span>, sitting in the Southern Hemisphere, moves in the <em>opposite direction</em> — hot when Siberia is at its coldest.</div>
+    <div id="lc-tooltip"></div>
+  </div>
+</div>
 
 <div id="teleconnection-box">
   <strong>What is a teleconnection?</strong> A teleconnection is a climate linkage between two regions that are far apart geographically — when temperatures in one region rise and fall, a connected region tends to follow the same pattern. An edge in this graph means those two regions' temperatures move together across the year. <strong>Thicker edges = stronger synchrony.</strong> This doesn't mean their climates are identical, just that they're statistically coupled — often driven by shared atmospheric circulation patterns or ocean currents.
@@ -280,6 +298,71 @@ document.getElementById("play-btn").addEventListener("click",function(){
   playInterval=setInterval(()=>{currentMonth=currentMonth>=12?1:currentMonth+1;document.getElementById("month-slider").value=currentMonth;render();},700);
 });
 render();
+
+// === Monthly Temperature Line Chart ===
+const LINE_COLORS={
+  amazon:"#1D9E75",sahara:"#e8a020",siberia:"#4a8fbf",
+  sahel:"#a3cc50",seasia:"#2ebf7a",greatp:"#c5e060",
+  mediter:"#EF9F27",congo:"#0fa87a",arctic:"#85B7EB",
+  andes:"#b0a8a0",australia:"#e06020",india:"#9F87DD"
+};
+
+(function(){
+  const M={top:18,right:16,bottom:36,left:48};
+  const VW=860,VH=230,CW=VW-M.left-M.right,CH=VH-M.top-M.bottom;
+  const g=d3.select("#lc-svg").attr("viewBox",`0 0 ${VW} ${VH}`)
+    .style("height","230px").append("g")
+    .attr("transform",`translate(${M.left},${M.top})`);
+  const xSc=d3.scaleLinear().domain([0,11]).range([0,CW]);
+  const ySc=d3.scaleLinear().domain([-32,44]).range([CH,0]);
+  const ticks=[-30,-20,-10,0,10,20,30,40];
+  ticks.forEach(t=>{
+    g.append("line").attr("x1",0).attr("x2",CW)
+      .attr("y1",ySc(t)).attr("y2",ySc(t))
+      .attr("stroke",t===0?"#2a4060":"#1a2535")
+      .attr("stroke-width",t===0?1:0.5)
+      .attr("stroke-dasharray",t===0?"4,3":null);
+    g.append("text").attr("x",-6).attr("y",ySc(t))
+      .attr("dominant-baseline","middle").attr("text-anchor","end")
+      .attr("fill","#a8c4e0").style("font-size","10px")
+      .style("font-family","'Courier New',monospace").style("font-weight","bold").text(t+"°");
+  });
+  MONTHS.forEach((m,i)=>{
+    g.append("text").attr("x",xSc(i)).attr("y",CH+16)
+      .attr("text-anchor","middle").attr("fill","#a8c4e0")
+      .style("font-size","10px").style("font-family","'Courier New',monospace").style("font-weight","bold").text(m);
+  });
+  const lg=d3.line().x((_,i)=>xSc(i)).y(d=>ySc(d))
+    .curve(d3.curveCatmullRom.alpha(0.5));
+  const tt=d3.select("#lc-tooltip");
+  REGION_IDS.forEach(id=>{
+    const reg=REGIONS.find(r=>r.id===id);
+    g.append("path").datum(LST_DATA[id])
+      .attr("class","lc-line lc-line-"+id).attr("fill","none")
+      .attr("stroke",LINE_COLORS[id]).attr("stroke-width",1.8)
+      .attr("d",lg).style("opacity",0.7).style("cursor","pointer");
+    g.append("path").datum(LST_DATA[id])
+      .attr("fill","none").attr("stroke","transparent")
+      .attr("stroke-width",16).attr("d",lg).style("cursor","pointer")
+      .on("mouseover",()=>{
+        g.selectAll(".lc-line").style("opacity",0.08).attr("stroke-width",1.5);
+        g.select(".lc-line-"+id).style("opacity",1).attr("stroke-width",2.8);
+      })
+      .on("mousemove",event=>{
+        const [mx]=d3.pointer(event);
+        const mi=Math.max(0,Math.min(11,Math.round(xSc.invert(mx))));
+        const br=document.getElementById("line-chart-wrap").getBoundingClientRect();
+        tt.style("opacity",1)
+          .style("left",(event.clientX-br.left+14)+"px")
+          .style("top",(event.clientY-br.top-10)+"px")
+          .html(`<div class="lc-t-name">${reg.name}</div><div class="lc-t-row">${MONTHS[mi]} 2023: <span class="lc-t-val">${LST_DATA[id][mi].toFixed(1)}°C</span></div><div class="lc-t-row">Biome: <span class="lc-t-val">${reg.biome}</span></div>`);
+      })
+      .on("mouseout",()=>{
+        g.selectAll(".lc-line").style("opacity",0.7).attr("stroke-width",1.8);
+        tt.style("opacity",0);
+      });
+  });
+})();
 </script>
 </body>
 </html>
