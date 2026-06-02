@@ -150,18 +150,13 @@
 
 <section id="writeup" style="max-width:860px;margin:32px auto 0;padding:28px 32px 40px;background:#0d1525;border:0.5px solid #2a4060;border-radius:10px;font-family:'Georgia',serif;color:#c8d4e8;line-height:1.75;">
 
-  <h2 style="font-size:18px;font-weight:normal;color:#e8eef8;letter-spacing:0.02em;margin-bottom:4px;">Project 4 Prototype Write-Up</h2>
+  <h2 style="font-size:18px;font-weight:normal;color:#e8eef8;letter-spacing:0.02em;margin-bottom:16px;">What Does This Tell Us?</h2>
 
-  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.1em;color:#4a8fbf;font-family:'Courier New',monospace;margin-bottom:10px;">What have you done so far?</h3>
-  <p style="font-size:13px;color:#9aafc8;margin-bottom:10px;"> So far, our prototype is a teleconnection network graph visualizing global temperature teleconnections across 12 biome regions using the NASA MODIS MOD11C3 monthly land surface temperature dataset. In the visualization, each biome is represented by a node. Connecting the nodes are edges where edge thickness is an indicator of the Pearson correlation between two different biomes, signaling how two region’s temperatures rise and fall together across the year. Each of the nodes are also positioned at true latitude/longitude values to preserve geographic information, giving lengths of the edges between each node significance. Interactions include a threshold slider filtering out weaker correlations between biomes and isolating stronger links, giving an option to decrease noise in the data, an animation button that shows how land surface temperatures shift seasonally each month, and a hover interaction that highlights data for a hovered/selected region. </em>
-  </p>
+  <p style="font-size:15px;color:#9aafc8;margin-bottom:14px;">On first glance, two regions like a frozen Siberian forest and a blistering desert like the Sahara should have no commonalities in temperature. However, in 2023 we saw that their surface temperatures moved in 97.7% sync (as determined by their Pearson correlation score - a calculated score where -1 means the regions move in complete opposition and +1 means they move in perfect unison). This phenomenon carries across multiple regions in the northern hemisphere, with Siberia and the Great Plains scoring a 96.3%, and the Arctic and Mediterranean moving together in 90.9% sync. These aren't neighboring regions, yet their temperatures rise and fall almost identically across 2023.</p>
 
-  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.1em;color:#4a8fbf;font-family:'Courier New',monospace;margin-bottom:10px;">What will be the most challenging part of your project and why?</h3>
-  <p style="font-size:13px;color:#9aafc8;margin-bottom:10px;"> The most challenging part of the project to design will be the actual story that we want to tell. Redesigning our existing prototype into a story into an experience that is more engaging and personal, rather than just interactive, will be difficult because it requires us to guide the viewer’s experience. This means we pick and choose what the most important takeaway or interesting part of our data/visualization is, requiring a greater understanding of the dataset and what we want our claim to be. Right now, the visualization features a lot of interactive features that allow the viewer to explore the data. A possible complication is that the interactive and explorative aspect of the visualization may show data that contradicts the claim of our story. </em>
-  </p>
+  <p style="font-size:15px;color:#9aafc8;">While the correlation scores can quantify how the regions’ temperatures are linked, the network graph allows you to see the overall connectivity across the globe. Through an exploration of the above visualizations, we can determine which regions are linked closely, which are outliers, and how the entire interconnected system changes when the seasons change. Observing patterns like these is what allows scientists to prepare for climate events and anomalies across the globe. Being able to visualize them as an interconnected network rather than a table of numbers emphasizes just how intertwined Earth’s climate really is. </p>
 
 </section>
-
 <script>
 const LST_DATA = {
   "amazon":    [27.1,27.3,27.0,26.8,26.2,25.8,25.6,26.4,27.2,27.5,27.4,27.2],
