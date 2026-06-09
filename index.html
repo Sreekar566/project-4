@@ -243,35 +243,33 @@ function drawHeadlineEdge(){
   const corr=CORR["siberia"]["sahara"];
   const active=corr>=threshold;
   highlightG.selectAll("*").remove();
-  if(!active){
-    highlightG.append("text")
-      .attr("x",sib.x).attr("y",sib.y-((sib._r||8)+10))
-      .attr("text-anchor","middle").attr("fill","#9a8340").attr("opacity",0.8)
-      .style("font-size","9px").style("font-family","'Courier New',monospace")
-      .text(`headline link hidden — lower the threshold below ${corr.toFixed(2)} to show it`);
-    return;
-  }
-  // Arc that bows up and clear of the straight-edge tangle
+  if(!active) return;
+  const hov=hoveredId!==null?REGIONS[hoveredId].id:null;
+  const focus=(hov==="siberia"||hov==="sahara");
+  // quiet at rest, dimmed when another node is in focus, bright when Siberia/Sahara is hovered
+  const arcOpacity=focus?0.95:(hoveredId!==null?0.10:0.38);
   const mx=(sib.x+sah.x)/2;
   const apexY=42;
   const cx=mx, cy=(4*apexY - sib.y - sah.y)/2;
   const apexX=(sib.x+2*cx+sah.x)/4;
   const path=`M${sib.x},${sib.y} Q${cx},${cy} ${sah.x},${sah.y}`;
-  // soft static glow under the arc (no animation)
+  if(focus){
+    // soft static glow only when the pair is in focus
+    highlightG.append("path").attr("d",path).attr("fill","none")
+      .attr("stroke","#FFB830").attr("stroke-width",7).attr("stroke-opacity",0.13)
+      .attr("stroke-linecap","round");
+  }
+  // the arc itself — always present, but quiet unless focused
   highlightG.append("path").attr("d",path).attr("fill","none")
-    .attr("stroke","#FFB830").attr("stroke-width",7).attr("stroke-opacity",0.13)
-    .attr("stroke-linecap","round");
-  // main dashed arc
-  highlightG.append("path").attr("d",path).attr("fill","none")
-    .attr("stroke","#FFB830").attr("stroke-width",2.2).attr("stroke-opacity",0.95)
+    .attr("stroke","#FFB830").attr("stroke-width",focus?2.4:1.6).attr("stroke-opacity",arcOpacity)
     .attr("stroke-dasharray","7,4").attr("stroke-linecap","round");
-  // endpoint rings so both ends read even inside the cluster
+  if(!focus) return;
+  // endpoint rings + label pill appear only on hover of Siberia or Sahara
   [sib,sah].forEach(p=>{
     highlightG.append("circle").attr("cx",p.x).attr("cy",p.y)
       .attr("r",(p._r||8)+4).attr("fill","none")
       .attr("stroke","#FFB830").attr("stroke-width",1.6).attr("stroke-opacity",0.9);
   });
-  // label pill anchored to the arc apex (open space, not over the tangle)
   const txt=`Siberia ↔ Sahara · r = ${corr.toFixed(3)}`;
   const pw=txt.length*6+18, ph=18, py=apexY-23;
   highlightG.append("rect")
