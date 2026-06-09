@@ -55,6 +55,11 @@
     #line-chart-wrap { background: #0d1220; border: 0.5px solid #1e2d45; border-radius: 8px; overflow: hidden; position: relative; }
     #lc-annotation { font-size: 12px; color: #5a7090; font-style: italic; line-height: 1.65; padding: 9px 16px 10px; border-top: 0.5px solid #1a2535; }
     #lc-annotation span { color: #a8c4e0; font-style: normal; }
+    #lc-annotation .rgn { cursor: pointer; border-bottom: 1px dashed #4a6080; transition: color 0.15s, border-color 0.15s; }
+    #lc-annotation .rgn:hover { border-bottom-color: #a8c4e0; }
+    #lc-annotation .rgn.active { font-weight: bold; }
+    #lc-reset a { color: #5a7090; text-decoration: none; border-bottom: 1px dotted #3a5070; }
+    #lc-reset a:hover { color: #a8c4e0; border-bottom-color: #a8c4e0; }
     @keyframes headline-pulse { 0%,100% { stroke-opacity: 0.08; } 50% { stroke-opacity: 0.22; } }
     .headline-glow { animation: headline-pulse 2.4s ease-in-out infinite; }
     #lc-tooltip { position: absolute; background: #111827; border: 0.5px solid #2a4060; border-radius: 8px; padding: 8px 12px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; }
@@ -82,7 +87,7 @@
   <div id="line-chart-header">Monthly Land Surface Temperature — All 12 Biomes · 2023 · Hover a line to identify it</div>
   <div id="line-chart-wrap">
     <svg id="lc-svg" width="100%"></svg>
-    <div id="lc-annotation">The headline link: <span>Siberia and the Sahara</span> co-move at r≈0.95 — both crest in summer, crash in winter, thousands of miles apart. So does the <span>Great Plains</span>. Others, like the <span>Amazon and Congo</span>, barely budge — their tropical position keeps temperatures nearly flat year-round. And <span>Australia</span>, sitting in the Southern Hemisphere, runs in the <em>opposite direction</em> — hot when Siberia is at its coldest.</div>
+    <div id="lc-annotation">Click a region name to light up its line. The headline link: <span class="rgn" data-region="siberia">Siberia</span> and the <span class="rgn" data-region="sahara">Sahara</span> co-move at r≈0.95 — both crest in summer, crash in winter, thousands of miles apart. So does the <span class="rgn" data-region="greatp">Great Plains</span>. Others, like the <span class="rgn" data-region="amazon">Amazon</span> and <span class="rgn" data-region="congo">Congo</span>, barely budge — their tropical position keeps temperatures nearly flat year-round. And <span class="rgn" data-region="australia">Australia</span>, sitting in the Southern Hemisphere, runs in the <em>opposite direction</em> — hot when <span class="rgn" data-region="siberia">Siberia</span> is at its coldest. <span id="lc-reset" style="display:none;">· <a href="#">show all</a></span></div>
     <div id="lc-tooltip"></div>
   </div>
 </div>
@@ -379,6 +384,29 @@ const LINE_COLORS={
   const lg=d3.line().x((_,i)=>xSc(i)).y(d=>ySc(d))
     .curve(d3.curveCatmullRom.alpha(0.5));
   const tt=d3.select("#lc-tooltip");
+
+  // --- Persistent highlight state: clicking a caption name (or a line) keeps it lit ---
+  const selected=new Set();
+  const isHeadline=id=>(id==="siberia"||id==="sahara");
+  const baseOpacity=id=>isHeadline(id)?0.92:0.65;
+  const baseWidth=id=>isHeadline(id)?2.6:1.8;
+  function applyHighlight(){
+    const hasSel=selected.size>0;
+    REGION_IDS.forEach(id=>{
+      const on=selected.has(id);
+      g.select(".lc-line-"+id)
+        .style("opacity",hasSel?(on?1:0.06):baseOpacity(id))
+        .attr("stroke-width",hasSel?(on?2.8:1.2):baseWidth(id));
+    });
+    document.querySelectorAll("#lc-annotation .rgn").forEach(el=>{
+      const on=selected.has(el.dataset.region);
+      el.classList.toggle("active",on);
+      el.style.color=on?LINE_COLORS[el.dataset.region]:"";
+    });
+    document.getElementById("lc-reset").style.display=hasSel?"inline":"none";
+  }
+  function toggleRegion(id){ selected.has(id)?selected.delete(id):selected.add(id); applyHighlight(); }
+
   REGION_IDS.forEach(id=>{
     const reg=REGIONS.find(r=>r.id===id);
     const isHL=id==="siberia"||id==="sahara";
@@ -402,11 +430,8 @@ const LINE_COLORS={
           .style("top",(event.clientY-br.top-10)+"px")
           .html(`<div class="lc-t-name">${reg.name}</div><div class="lc-t-row">${MONTHS[mi]} 2023: <span class="lc-t-val">${LST_DATA[id][mi].toFixed(1)}°C</span></div><div class="lc-t-row">Biome: <span class="lc-t-val">${reg.biome}</span></div>`);
       })
-      .on("mouseout",()=>{
-        g.selectAll(".lc-line").style("opacity",0.65).attr("stroke-width",1.8);
-        g.selectAll(".lc-headline").style("opacity",0.92).attr("stroke-width",2.6);
-        tt.style("opacity",0);
-      });
+      .on("mouseout",()=>{ applyHighlight(); tt.style("opacity",0); })
+      .on("click",()=>toggleRegion(id));
   });
   // End-of-line labels for the headline pair
   ["siberia","sahara"].forEach(id=>{
@@ -419,6 +444,14 @@ const LINE_COLORS={
       .style("font-weight","bold")
       .text(id==="siberia"?"Siberia":"Sahara");
   });
+
+  // Wire up clickable region names in the caption + the "show all" reset
+  document.querySelectorAll("#lc-annotation .rgn").forEach(el=>{
+    el.addEventListener("click",e=>{ e.preventDefault(); toggleRegion(el.dataset.region); });
+  });
+  document.getElementById("lc-reset").querySelector("a")
+    .addEventListener("click",e=>{ e.preventDefault(); selected.clear(); applyHighlight(); });
+  applyHighlight();
 })();
 </script>
 </body>
