@@ -144,7 +144,7 @@
         <div style="width:40px;height:0;border-top:2px dashed #FFB830;flex-shrink:0;"></div>
         <span style="color:#c8a040;font-size:10px;">Siberia ↔ Sahara</span>
       </div>
-      <div style="font-size:10px;color:#7a6830;margin-top:5px;line-height:1.5;">r = 0.95 · the story<br>this chart tells</div>
+      <div style="font-size:10px;color:#7a6830;margin-top:5px;line-height:1.5;">r = <span id="hl-r">0.95</span> · the story<br>this chart tells</div>
     </div>
     <div class="sid-section">
       <div class="sid-title">Biome color</div>
@@ -235,43 +235,62 @@ const seen=new Set();
 document.getElementById("biome-legend").innerHTML=
   REGIONS.map(r=>r.biome).filter(b=>seen.has(b)?false:(seen.add(b),true))
   .map(b=>`<div class="leg-item"><div class="leg-dot" style="background:${BIOME_COLORS[b]}"></div><span>${b}</span></div>`).join("");
+document.getElementById("hl-r").textContent=CORR["siberia"]["sahara"].toFixed(3);
 
 function drawHeadlineEdge(){
   const sib=REGIONS.find(r=>r.id==="siberia");
   const sah=REGIONS.find(r=>r.id==="sahara");
   const corr=CORR["siberia"]["sahara"];
-  const mx=(sib.x+sah.x)/2, my=(sib.y+sah.y)/2;
-  const lx=mx+18, ly=my-18;
   const active=corr>=threshold;
   highlightG.selectAll("*").remove();
-  // Glow halo (pulsing via CSS)
-  highlightG.append("line").attr("class","headline-glow")
-    .attr("x1",sib.x).attr("y1",sib.y).attr("x2",sah.x).attr("y2",sah.y)
-    .attr("stroke","#FFB830").attr("stroke-width",10).style("stroke-opacity",active?0.12:0.04);
-  // Dashed highlight edge
-  highlightG.append("line")
-    .attr("x1",sib.x).attr("y1",sib.y).attr("x2",sah.x).attr("y2",sah.y)
-    .attr("stroke","#FFB830").attr("stroke-width",2.2)
-    .attr("stroke-opacity",active?0.88:0.28).attr("stroke-dasharray","7,4");
-  // Label pill
-  const label=active?`Siberia ↔ Sahara  r=${corr.toFixed(2)}`:`Siberia ↔ Sahara  r=${corr.toFixed(2)} (filtered)`;
-  const pw=active?148:198, ph=17;
+  if(!active){
+    highlightG.append("text")
+      .attr("x",sib.x).attr("y",sib.y-((sib._r||8)+10))
+      .attr("text-anchor","middle").attr("fill","#9a8340").attr("opacity",0.8)
+      .style("font-size","9px").style("font-family","'Courier New',monospace")
+      .text(`headline link hidden — lower the threshold below ${corr.toFixed(2)} to show it`);
+    return;
+  }
+  // Arc that bows up and clear of the straight-edge tangle
+  const mx=(sib.x+sah.x)/2;
+  const apexY=42;
+  const cx=mx, cy=(4*apexY - sib.y - sah.y)/2;
+  const apexX=(sib.x+2*cx+sah.x)/4;
+  const path=`M${sib.x},${sib.y} Q${cx},${cy} ${sah.x},${sah.y}`;
+  // soft static glow under the arc (no animation)
+  highlightG.append("path").attr("d",path).attr("fill","none")
+    .attr("stroke","#FFB830").attr("stroke-width",7).attr("stroke-opacity",0.13)
+    .attr("stroke-linecap","round");
+  // main dashed arc
+  highlightG.append("path").attr("d",path).attr("fill","none")
+    .attr("stroke","#FFB830").attr("stroke-width",2.2).attr("stroke-opacity",0.95)
+    .attr("stroke-dasharray","7,4").attr("stroke-linecap","round");
+  // endpoint rings so both ends read even inside the cluster
+  [sib,sah].forEach(p=>{
+    highlightG.append("circle").attr("cx",p.x).attr("cy",p.y)
+      .attr("r",(p._r||8)+4).attr("fill","none")
+      .attr("stroke","#FFB830").attr("stroke-width",1.6).attr("stroke-opacity",0.9);
+  });
+  // label pill anchored to the arc apex (open space, not over the tangle)
+  const txt=`Siberia ↔ Sahara · r = ${corr.toFixed(3)}`;
+  const pw=txt.length*6+18, ph=18, py=apexY-23;
   highlightG.append("rect")
-    .attr("x",lx-pw/2).attr("y",ly-ph+3).attr("width",pw).attr("height",ph)
-    .attr("rx",3).attr("fill","#0b1018").attr("stroke","#FFB830")
-    .attr("stroke-width",0.7).attr("opacity",active?0.95:0.65);
+    .attr("x",apexX-pw/2).attr("y",py).attr("width",pw).attr("height",ph)
+    .attr("rx",4).attr("fill","#0b1018").attr("stroke","#FFB830")
+    .attr("stroke-width",0.8).attr("opacity",0.97);
   highlightG.append("text")
-    .attr("x",lx).attr("y",ly-1)
+    .attr("x",apexX).attr("y",py+ph/2+0.5)
     .attr("text-anchor","middle").attr("dominant-baseline","middle")
-    .attr("fill","#FFB830").attr("opacity",active?1:0.45)
-    .style("font-size","9px").style("font-family","'Courier New',monospace")
-    .text(label);
+    .attr("fill","#FFD98a")
+    .style("font-size","10px").style("font-family","'Courier New',monospace")
+    .text(txt);
 }
 
 function render(){
   REGIONS.forEach(r=>{r.lst=LST_DATA[r.id][currentMonth-1];});
   const lsts=REGIONS.map(r=>r.lst);
   const rScale=d3.scaleSqrt().domain([d3.min(lsts),d3.max(lsts)]).range([5,22]);
+  REGIONS.forEach(r=>{r._r=Math.max(4,rScale(r.lst));});
 
   const edges=[];
   for(let i=0;i<REGIONS.length;i++)
