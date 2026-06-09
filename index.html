@@ -55,6 +55,8 @@
     #line-chart-wrap { background: #0d1220; border: 0.5px solid #1e2d45; border-radius: 8px; overflow: hidden; position: relative; }
     #lc-annotation { font-size: 12px; color: #5a7090; font-style: italic; line-height: 1.65; padding: 9px 16px 10px; border-top: 0.5px solid #1a2535; }
     #lc-annotation span { color: #a8c4e0; font-style: normal; }
+    @keyframes headline-pulse { 0%,100% { stroke-opacity: 0.08; } 50% { stroke-opacity: 0.22; } }
+    .headline-glow { animation: headline-pulse 2.4s ease-in-out infinite; }
     #lc-tooltip { position: absolute; background: #111827; border: 0.5px solid #2a4060; border-radius: 8px; padding: 8px 12px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; }
     .lc-t-name { font-size: 13px; color: #e8eef8; margin-bottom: 4px; }
     .lc-t-row { color: #7a8faa; margin: 2px 0; }
@@ -65,7 +67,7 @@
 
 <header>
   <h1>When Siberia Warms, So Does the Sahara. Why?</h1>
-  <p>A data-driven exploration of teleconnections: A fascinating phenomenon</p>
+  <p>A data-driven exploration of teleconnections: A fascinating phenomenon · NASA MODIS LST · 12 biome regions · 2023</p>
 </header>
 
 <div id="teleconnection-box" style="font-size:15px;">
@@ -80,7 +82,7 @@
   <div id="line-chart-header">Monthly Land Surface Temperature — All 12 Biomes · 2023 · Hover a line to identify it</div>
   <div id="line-chart-wrap">
     <svg id="lc-svg" width="100%"></svg>
-    <div id="lc-annotation">Notice how some curves mirror each other almost perfectly — <span>Siberia and the Great Plains</span> rise and fall in near-perfect sync, both peaking in summer and crashing in winter. Others, like the <span>Amazon and Congo</span>, barely move at all. And <span>Australia</span>, sitting in the Southern Hemisphere, moves in the <em>opposite direction</em> — hot when Siberia is at its coldest.</div>
+    <div id="lc-annotation">The headline link: <span>Siberia and the Sahara</span> co-move at r≈0.95 — both crest in summer, crash in winter, thousands of miles apart. So does the <span>Great Plains</span>. Others, like the <span>Amazon and Congo</span>, barely budge — their tropical position keeps temperatures nearly flat year-round. And <span>Australia</span>, sitting in the Southern Hemisphere, runs in the <em>opposite direction</em> — hot when Siberia is at its coldest.</div>
     <div id="lc-tooltip"></div>
   </div>
 </div>
@@ -130,6 +132,14 @@
       <div class="edge-row"><div class="edge-line" style="width:40px;height:5px;opacity:0.9"></div><span>Strong (r ≥ 0.8)</span></div>
       <div class="edge-row"><div class="edge-line" style="width:40px;height:2.5px;opacity:0.6"></div><span>Moderate</span></div>
       <div class="edge-row"><div class="edge-line" style="width:40px;height:1px;opacity:0.35"></div><span>Weak (≥ threshold)</span></div>
+    </div>
+    <div class="sid-section" style="border-left:2px solid #FFB830;">
+      <div class="sid-title" style="color:#c8a040;">Headline link</div>
+      <div class="edge-row">
+        <div style="width:40px;height:0;border-top:2px dashed #FFB830;flex-shrink:0;"></div>
+        <span style="color:#c8a040;font-size:10px;">Siberia ↔ Sahara</span>
+      </div>
+      <div style="font-size:10px;color:#7a6830;margin-top:5px;line-height:1.5;">r = 0.95 · the story<br>this chart tells</div>
     </div>
     <div class="sid-section">
       <div class="sid-title">Biome color</div>
@@ -203,7 +213,7 @@ const REGIONS=[
   {id:"india",    name:"India",         lat:20,  lon:78,  biome:"Mixed"},
 ];
 
-const BIOME_COLORS={"Tropical Forest":"#1D9E75","Desert":"#BA7517","Boreal Forest":"#0F6E56","Savanna":"#639922","Grassland":"#97C459","Shrubland":"#EF9F27","Tundra":"#85B7EB","Mountain":"#888780","Mixed":"#7F77DD"};
+const BIOME_COLORS={"Tropical Forest":"#1D9E75","Desert":"#BA7517","Boreal Forest":"#2aad8a","Savanna":"#639922","Grassland":"#97C459","Shrubland":"#EF9F27","Tundra":"#85B7EB","Mountain":"#888780","Mixed":"#7F77DD"};
 
 const W=640,H=400;
 REGIONS.forEach(r=>{r.x=(r.lon+180)/360*W;r.y=(90-r.lat)/180*H;});
@@ -213,13 +223,45 @@ const grat=svg.append("g");
 for(let lat=-60;lat<=60;lat+=30){const y=(90-lat)/180*H;grat.append("line").attr("x1",0).attr("y1",y).attr("x2",W).attr("y2",y).attr("stroke","#1a2535").attr("stroke-width","0.5");}
 for(let lon=-150;lon<=150;lon+=60){const x=(lon+180)/360*W;grat.append("line").attr("x1",x).attr("y1",0).attr("x2",x).attr("y2",H).attr("stroke","#1a2535").attr("stroke-width","0.5");}
 
-const linkG=svg.append("g"), nodeG=svg.append("g"), tooltip=d3.select("#tooltip");
+const linkG=svg.append("g"), nodeG=svg.append("g"), highlightG=svg.append("g"), tooltip=d3.select("#tooltip");
 let currentMonth=7,threshold=0.4,hoveredId=null,playInterval=null;
 
 const seen=new Set();
 document.getElementById("biome-legend").innerHTML=
   REGIONS.map(r=>r.biome).filter(b=>seen.has(b)?false:(seen.add(b),true))
   .map(b=>`<div class="leg-item"><div class="leg-dot" style="background:${BIOME_COLORS[b]}"></div><span>${b}</span></div>`).join("");
+
+function drawHeadlineEdge(){
+  const sib=REGIONS.find(r=>r.id==="siberia");
+  const sah=REGIONS.find(r=>r.id==="sahara");
+  const corr=CORR["siberia"]["sahara"];
+  const mx=(sib.x+sah.x)/2, my=(sib.y+sah.y)/2;
+  const lx=mx+18, ly=my-18;
+  const active=corr>=threshold;
+  highlightG.selectAll("*").remove();
+  // Glow halo (pulsing via CSS)
+  highlightG.append("line").attr("class","headline-glow")
+    .attr("x1",sib.x).attr("y1",sib.y).attr("x2",sah.x).attr("y2",sah.y)
+    .attr("stroke","#FFB830").attr("stroke-width",10).style("stroke-opacity",active?0.12:0.04);
+  // Dashed highlight edge
+  highlightG.append("line")
+    .attr("x1",sib.x).attr("y1",sib.y).attr("x2",sah.x).attr("y2",sah.y)
+    .attr("stroke","#FFB830").attr("stroke-width",2.2)
+    .attr("stroke-opacity",active?0.88:0.28).attr("stroke-dasharray","7,4");
+  // Label pill
+  const label=active?`Siberia ↔ Sahara  r=${corr.toFixed(2)}`:`Siberia ↔ Sahara  r=${corr.toFixed(2)} (filtered)`;
+  const pw=active?148:198, ph=17;
+  highlightG.append("rect")
+    .attr("x",lx-pw/2).attr("y",ly-ph+3).attr("width",pw).attr("height",ph)
+    .attr("rx",3).attr("fill","#0b1018").attr("stroke","#FFB830")
+    .attr("stroke-width",0.7).attr("opacity",active?0.95:0.65);
+  highlightG.append("text")
+    .attr("x",lx).attr("y",ly-1)
+    .attr("text-anchor","middle").attr("dominant-baseline","middle")
+    .attr("fill","#FFB830").attr("opacity",active?1:0.45)
+    .style("font-size","9px").style("font-family","'Courier New',monospace")
+    .text(label);
+}
 
 function render(){
   REGIONS.forEach(r=>{r.lst=LST_DATA[r.id][currentMonth-1];});
@@ -287,6 +329,7 @@ function render(){
   document.getElementById("m-corr").textContent=edges.length?d3.mean(edges,e=>e.value).toFixed(2):"—";
   document.getElementById("m-season").textContent=SEASONS[currentMonth];
   document.getElementById("time-label").textContent=MONTHS[currentMonth-1]+" 2023";
+  drawHeadlineEdge();
 }
 
 document.getElementById("thresh").addEventListener("input",e=>{threshold=parseFloat(e.target.value);document.getElementById("thresh-val").textContent=threshold.toFixed(2);render();});
@@ -300,7 +343,7 @@ render();
 
 // === Monthly Temperature Line Chart ===
 const LINE_COLORS={
-  amazon:"#1D9E75",sahara:"#e8a020",siberia:"#4a8fbf",
+  amazon:"#1D9E75",sahara:"#BA7517",siberia:"#2aad8a",
   sahel:"#a3cc50",seasia:"#2ebf7a",greatp:"#c5e060",
   mediter:"#EF9F27",congo:"#0fa87a",arctic:"#85B7EB",
   andes:"#b0a8a0",australia:"#e06020",india:"#9F87DD"
@@ -336,10 +379,11 @@ const LINE_COLORS={
   const tt=d3.select("#lc-tooltip");
   REGION_IDS.forEach(id=>{
     const reg=REGIONS.find(r=>r.id===id);
+    const isHL=id==="siberia"||id==="sahara";
     g.append("path").datum(LST_DATA[id])
-      .attr("class","lc-line lc-line-"+id).attr("fill","none")
-      .attr("stroke",LINE_COLORS[id]).attr("stroke-width",1.8)
-      .attr("d",lg).style("opacity",0.7).style("cursor","pointer");
+      .attr("class","lc-line lc-line-"+id+(isHL?" lc-headline":"")).attr("fill","none")
+      .attr("stroke",LINE_COLORS[id]).attr("stroke-width",isHL?2.6:1.8)
+      .attr("d",lg).style("opacity",isHL?0.92:0.65).style("cursor","pointer");
     g.append("path").datum(LST_DATA[id])
       .attr("fill","none").attr("stroke","transparent")
       .attr("stroke-width",16).attr("d",lg).style("cursor","pointer")
@@ -357,9 +401,21 @@ const LINE_COLORS={
           .html(`<div class="lc-t-name">${reg.name}</div><div class="lc-t-row">${MONTHS[mi]} 2023: <span class="lc-t-val">${LST_DATA[id][mi].toFixed(1)}°C</span></div><div class="lc-t-row">Biome: <span class="lc-t-val">${reg.biome}</span></div>`);
       })
       .on("mouseout",()=>{
-        g.selectAll(".lc-line").style("opacity",0.7).attr("stroke-width",1.8);
+        g.selectAll(".lc-line").style("opacity",0.65).attr("stroke-width",1.8);
+        g.selectAll(".lc-headline").style("opacity",0.92).attr("stroke-width",2.6);
         tt.style("opacity",0);
       });
+  });
+  // End-of-line labels for the headline pair
+  ["siberia","sahara"].forEach(id=>{
+    const y=ySc(LST_DATA[id][11]);
+    g.append("text")
+      .attr("x",xSc(11)+10).attr("y",y)
+      .attr("dominant-baseline","middle")
+      .attr("fill",LINE_COLORS[id])
+      .style("font-size","9px").style("font-family","'Courier New',monospace")
+      .style("font-weight","bold")
+      .text(id==="siberia"?"Siberia":"Sahara");
   });
 })();
 </script>
