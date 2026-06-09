@@ -46,7 +46,7 @@
     #tooltip .t-val { color: #a8c4e0; }
     #tooltip .t-conn { margin-top: 6px; padding-top: 6px; border-top: 0.5px solid #1e2d45; font-size: 11px; color: #5a7090; font-family: 'Courier New', monospace; line-height: 1.6; }
     #tooltip .t-what { margin-top: 6px; padding-top: 6px; border-top: 0.5px solid #1e2d45; font-size: 11px; color: #4a8fbf; font-style: italic; line-height: 1.5; }
-    .node-label { font-size: 10px; font-family: 'Courier New', monospace; fill: #5a7090; pointer-events: none; }
+    .node-label { font-size: 10px; font-family: 'Courier New', monospace; fill: #8aa0c0; pointer-events: none; paint-order: stroke; stroke: #0d1220; stroke-width: 3px; stroke-linejoin: round; }
     footer { margin-top: 16px; font-size: 11px; color: #2a4060; font-family: 'Courier New', monospace; border-top: 0.5px solid #1a2535; padding-top: 12px; }
     footer a { color: #3a6090; text-decoration: none; }
     footer a:hover { color: #5a8fbf; }
@@ -301,6 +301,7 @@ function render(){
   enter.append("circle").attr("r",0).attr("stroke","#0d1220").attr("stroke-width",1.5).style("cursor","pointer")
     .on("mouseover",(event,d)=>{
       hoveredId=REGIONS.indexOf(d); render();
+      nodeG.selectAll(".node-grp").filter(n=>n.id===d.id).raise();
       const adj=edges.filter(e=>e.source===hoveredId||e.target===hoveredId);
       const conns=adj.map(e=>{const o=e.source===hoveredId?e.target:e.source;return{name:REGIONS[o].name,val:e.value};}).sort((a,b)=>b.val-a.val);
       tooltip.style("opacity",1).html(`<div class="t-name">${d.name}</div>
@@ -318,7 +319,7 @@ function render(){
       tooltip.style("left",(event.clientX-r.left+14)+"px").style("top",(event.clientY-r.top-10)+"px");
     })
     .on("mouseout",()=>{hoveredId=null;render();tooltip.style("opacity",0);document.getElementById("selected-info").style.display="none";});
-  enter.append("text").attr("class","node-label").attr("text-anchor","middle").attr("dy","-12");
+  enter.append("text").attr("class","node-label").attr("text-anchor","middle");
 
   const all=enter.merge(nds);
   all.attr("transform",d=>`translate(${d.x},${d.y})`);
@@ -326,7 +327,7 @@ function render(){
     .attr("r",d=>Math.max(4,rScale(d.lst)).toFixed(1))
     .attr("fill",d=>BIOME_COLORS[d.biome]||"#7F77DD")
     .attr("fill-opacity",d=>connectedTo===null?0.85:connectedTo.has(REGIONS.indexOf(d))?1:0.12);
-  all.select("text").text(d=>d.name).style("opacity",d=>connectedTo===null?1:connectedTo.has(REGIONS.indexOf(d))?1:0.12);
+  all.select("text").attr("y",d=>-(Math.max(4,rScale(d.lst))+6)).text(d=>d.name).style("opacity",d=>connectedTo===null?1:connectedTo.has(REGIONS.indexOf(d))?1:0.12);
   nds.exit().remove();
 
   document.getElementById("m-nodes").textContent=REGIONS.length;
